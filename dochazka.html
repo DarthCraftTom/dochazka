@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Příchody pedagogů</title>
+    <!-- Načtení Chart.js pro graf -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --bg: #F3F4F6;
+            --surface: #FFFFFF;
+            --text: #1F2937;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            align-items: flex-start;
+        }
+        .form-section, .chart-section {
+            background-color: var(--surface);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            flex: 1;
+            min-width: 300px;
+        }
+        h2 { margin-top: 0; }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #4338CA; }
+        #message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            display: none;
+            text-align: center;
+            font-weight: bold;
+        }
+        .success { background-color: #D1FAE5; color: #065F46; }
+        .error { background-color: #FEE2E2; color: #991B1B; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Formulář -->
+    <div class="form-section">
+        <h2>Záznam příchodu</h2>
+        <form id="arrivalForm">
+            <div class="form-group">
+                <label for="teacher">Pedagog</label>
+                <select id="teacher" required>
+                    <option value="" disabled selected>Vyberte učitele...</option>
+                    <option value="Bouchalová">Bouchalová</option>
+                    <option value="Juhasová">Juhasová</option>
+                    <option value="Bednář">Bednář</option>
+                    <option value="Bartošová">Bartošová</option>
+                    <option value="Daněk">Daněk</option>
+                    <option value="Zelinová">Zelinová</option>
+                    <option value="Janko">Janko</option>
+                    <option value="Novotná">Novotná</option>
+                    <option value="Glézl">Glézl</option>
+                    <option value="Staněk">Staněk</option>
+                    <option value="Trochta">Trochta</option>
+                    <option value="Bartoš">Bartoš</option>
+                    <option value="Wisman">Wisman</option>
+                </select>
+            </div>
+            <div class="form-group" style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label for="minutes">Minuty</label>
+                    <input type="number" id="minutes" min="0" value="0" required>
+                </div>
+                <div style="flex: 1;">
+                    <label for="seconds">Sekundy</label>
+                    <input type="number" id="seconds" min="0" max="59" value="0" required>
+                </div>
+            </div>
+            <button type="submit" id="submitBtn">Odeslat</button>
+        </form>
+        <div id="message"></div>
+    </div>
+
+    <!-- Graf -->
+    <div class="chart-section">
+        <h2>Přehled (od nejpozdějšího)</h2>
+        <canvas id="myChart"></canvas>
+    </div>
+</div>
+
+<!-- Firebase SDK a logika (ES Modules) -->
+<script type="module">
+    // Import Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    // VLOŽ SVŮJ FIREBASE CONFIG TADY!!!
+    const firebaseConfig = {
+  apiKey: "AIzaSyClGPUE8Dr2pzYoxFSRuO3zRWkQZGztcsM",
+  authDomain: "dochazka-2b9ae.firebaseapp.com",
+  projectId: "dochazka-2b9ae",
+  storageBucket: "dochazka-2b9ae.firebasestorage.app",
+  messagingSenderId: "105090704625",
+  appId: "1:105090704625:web:c14ac1831f20c1733cb550"
+};
+
+    // Inicializace
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Globální proměnná pro graf
+    let arrivalChart = null;
+
+    // Elementy z DOMu
+    const form = document.getElementById('arrivalForm');
+    const messageDiv = document.getElementById('message');
+    const btn = document.getElementById('submitBtn');
+
+    // Funkce pro zobrazení zprávy
+    function showMessage(text, type) {
+        messageDiv.textContent = text;
+        messageDiv.className = type; // success nebo error
+        messageDiv.style.display = 'block';
+        setTimeout(() => messageDiv.style.display = 'none', 3000);
+    }
+
+    // Odeslání formuláře do Firestore
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        btn.disabled = true;
+        btn.textContent = "Odesílám...";
+
+        const teacher = document.getElementById('teacher').value;
+        const minutes = parseInt(document.getElementById('minutes').value);
+        const seconds = parseInt(document.getElementById('seconds').value);
+        
+        // Převod na celkové sekundy pro snazší výpočty
+        const totalSeconds = (minutes * 60) + seconds;
+
+        try {
+            await addDoc(collection(db, "arrivals"), {
+                teacher: teacher,
+                minutes: minutes,
+                seconds: seconds,
+                totalSeconds: totalSeconds,
+                timestamp: new Date()
+            });
+            showMessage('Úspěšně odesláno!', 'success');
+            form.reset();
+            document.getElementById('minutes').value = 0;
+            document.getElementById('seconds').value = 0;
+            await loadChartData(); // Přenačíst graf
+        } catch (error) {
+            console.error("Chyba při zápisu: ", error);
+            showMessage('Chyba při odesílání: ' + error.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Odeslat";
+        }
+    });
+
+    // Funkce pro načtení dat a vykreslení grafu
+    async function loadChartData() {
+        const querySnapshot = await getDocs(collection(db, "arrivals"));
+        const teacherData = {};
+
+        // Sčítání časů pro zjištění průměru
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (!teacherData[data.teacher]) {
+                teacherData[data.teacher] = { totalSec: 0, count: 0 };
+            }
+            teacherData[data.teacher].totalSec += data.totalSeconds;
+            teacherData[data.teacher].count += 1;
+        });
+
+        // Výpočet průměrů a převedení na pole pro seřazení
+        const averages = [];
+        for (const [name, stats] of Object.entries(teacherData)) {
+            averages.push({
+                name: name,
+                avgSeconds: Math.round(stats.totalSec / stats.count)
+            });
+        }
+
+        // SEŘAZENÍ: od nejpozdějšího (nejvíce času) po nejrychlejší (nejméně)
+        averages.sort((a, b) => b.avgSeconds - a.avgSeconds);
+
+        const labels = averages.map(a => a.name);
+        // Převod zpět na desetinné minuty (např. pro zobrazení v grafu) nebo čistě sekundy
+        // Uděláme to jako celkové průměrné sekundy
+        const dataValues = averages.map(a => a.avgSeconds);
+
+        renderChart(labels, dataValues);
+    }
+
+    // Funkce pro vykreslení grafu Chart.js
+    function renderChart(labels, dataValues) {
+        const ctx = document.getElementById('myChart').getContext('2d');
+        
+        // Zničit starý graf pokud existuje
+        if (arrivalChart) {
+            arrivalChart.destroy();
+        }
+
+        arrivalChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Průměrné zpoždění (v sekundách)',
+                    data: dataValues,
+                    backgroundColor: 'rgba(79, 70, 229, 0.5)',
+                    borderColor: 'rgba(79, 70, 229, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Sekundy celkem'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Při prvním načtení stránky načíst data do grafu
+    loadChartData();
+</script>
+
+</body>
+</html>
