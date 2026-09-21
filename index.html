@@ -9,17 +9,30 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
+            /* Tmavý režim jako výchozí */
+            --primary: #6366F1; /* Světlejší modrá pro tmavý režim */
+            --bg: #111827;
+            --surface: #1F2937;
+            --text: #F9FAFB;
+            --border: #374151;
+        }
+
+        /* Třída pro světlý režim (pokud bys chtěl někdy přepínat) */
+        .light-mode {
             --primary: #4F46E5;
             --bg: #F3F4F6;
             --surface: #FFFFFF;
             --text: #1F2937;
+            --border: #D1D5DB;
         }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
             padding: 20px;
+            transition: background-color 0.3s, color 0.3s; /* Plynulý přechod */
         }
         .container {
             max-width: 1200px;
@@ -29,15 +42,16 @@
             gap: 30px;
             align-items: flex-start;
         }
-        .form-section, .chart-section {
+        .form-section, .chart-section, .stopwatch-section {
             background-color: var(--surface);
             padding: 25px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); /* Tmavší stín */
             flex: 1;
             min-width: 300px;
+            transition: background-color 0.3s;
         }
-        h2 { margin-top: 0; }
+        h2 { margin-top: 0; color: var(--text); }
         .form-group {
             margin-bottom: 15px;
         }
@@ -45,14 +59,17 @@
             display: block;
             margin-bottom: 5px;
             font-weight: 600;
+            color: var(--text);
         }
         select, input {
             width: 100%;
             padding: 10px;
-            border: 1px solid #D1D5DB;
+            border: 1px solid var(--border);
             border-radius: 6px;
             box-sizing: border-box;
             font-size: 16px;
+            background-color: var(--bg); /* Tmavší pozadí pro inputy */
+            color: var(--text);
         }
         button {
             background-color: var(--primary);
@@ -75,13 +92,47 @@
             text-align: center;
             font-weight: bold;
         }
-        .success { background-color: #D1FAE5; color: #065F46; }
-        .error { background-color: #FEE2E2; color: #991B1B; }
+        .success { background-color: #065F46; color: #D1FAE5; } /* Tmavší úspěch */
+        .error { background-color: #991B1B; color: #FEE2E2; } /* Tmavší chyba */
+
+        /* Styly pro stopky */
+        .stopwatch-display {
+            font-size: 3em;
+            text-align: center;
+            font-family: monospace;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+        .stopwatch-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stopwatch-controls button {
+            flex: 1;
+        }
+        #transferTimeBtn {
+            background-color: #10B981; /* Zelené tlačítko pro přenos */
+        }
+        #transferTimeBtn:hover {
+            background-color: #059669;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <!-- Stopky -->
+    <div class="stopwatch-section">
+        <h2>Stopky</h2>
+        <div class="stopwatch-display" id="display">00:00:00</div>
+        <div class="stopwatch-controls">
+            <button id="startStopBtn">Start</button>
+            <button id="resetBtn">Reset</button>
+        </div>
+        <button id="transferTimeBtn" disabled>Přenést čas do formuláře</button>
+    </div>
+
     <!-- Formulář -->
     <div class="form-section">
         <h2>Záznam příchodu</h2>
@@ -143,6 +194,73 @@
   appId: "1:105090704625:web:c14ac1831f20c1733cb550"
 };
 
+// --- STOPKY LOGIKA ---
+    let startTime;
+    let elapsedTime = 0;
+    let timerInterval;
+    let isRunning = false;
+
+    const display = document.getElementById('display');
+    const startStopBtn = document.getElementById('startStopBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const transferTimeBtn = document.getElementById('transferTimeBtn');
+    const formMinutesInput = document.getElementById('minutes');
+    const formSecondsInput = document.getElementById('seconds');
+
+    function formatTime(time) {
+        let date = new Date(time);
+        let m = date.getUTCMinutes().toString().padStart(2, '0');
+        let s = date.getUTCSeconds().toString().padStart(2, '0');
+        let ms = Math.floor(date.getUTCMilliseconds() / 10).toString().padStart(2, '0');
+        return `${m}:${s}:${ms}`;
+    }
+
+    function updateDisplay() {
+        display.textContent = formatTime(elapsedTime);
+    }
+
+    startStopBtn.addEventListener('click', () => {
+        if (!isRunning) {
+            startTime = Date.now() - elapsedTime;
+            timerInterval = setInterval(() => {
+                elapsedTime = Date.now() - startTime;
+                updateDisplay();
+            }, 10);
+            startStopBtn.textContent = 'Stop';
+            isRunning = true;
+            transferTimeBtn.disabled = true; // Zákaz přenosu během běhu
+        } else {
+            clearInterval(timerInterval);
+            startStopBtn.textContent = 'Start';
+            isRunning = false;
+            transferTimeBtn.disabled = false; // Povolení přenosu po zastavení
+        }
+    });
+
+    resetBtn.addEventListener('click', () => {
+        clearInterval(timerInterval);
+        elapsedTime = 0;
+        updateDisplay();
+        startStopBtn.textContent = 'Start';
+        isRunning = false;
+        transferTimeBtn.disabled = true;
+    });
+
+    transferTimeBtn.addEventListener('click', () => {
+        let date = new Date(elapsedTime);
+        let m = date.getUTCMinutes();
+        let s = date.getUTCSeconds();
+        
+        formMinutesInput.value = m;
+        formSecondsInput.value = s;
+        
+        // Vizuální zpětná vazba
+        const originalText = transferTimeBtn.textContent;
+        transferTimeBtn.textContent = "Přeneseno!";
+        setTimeout(() => { transferTimeBtn.textContent = originalText; }, 1500);
+    });
+    // --- KONEC STOPKY LOGIKA ---
+    
     // Inicializace
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
