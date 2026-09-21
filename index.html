@@ -170,7 +170,7 @@
             <button id="startStopBtn">Start</button>
             <button id="resetBtn">Reset</button>
         </div>
-        <button id="transferTimeBtn" disabled>Přenést čas do formuláře</button>
+        <button type="button" id="transferTimeBtn">Přenést čas do formuláře</button>
     </div>
 
     <!-- Formulář -->
@@ -328,12 +328,10 @@
             }, 10);
             startStopBtn.textContent = 'Stop';
             isRunning = true;
-            transferTimeBtn.disabled = true;
         } else {
             clearInterval(timerInterval);
             startStopBtn.textContent = 'Start';
             isRunning = false;
-            transferTimeBtn.disabled = false;
         }
     });
 
@@ -343,7 +341,6 @@
         updateDisplay();
         startStopBtn.textContent = 'Start';
         isRunning = false;
-        transferTimeBtn.disabled = true;
     });
 
     transferTimeBtn.addEventListener('click', () => {
@@ -358,6 +355,7 @@
         transferTimeBtn.textContent = "Přeneseno!";
         setTimeout(() => { transferTimeBtn.textContent = originalText; }, 1500);
     });
+    // --- KONEC STOPKY LOGIKA ---
 
     // --- AUTOMATICKÉ ZAPNUTÍ STOPEK DLE ZVONĚNÍ ---
     const bellTimes = ["08:00", "08:55", "10:00", "10:55", "11:50", "12:45", "13:35", "14:30", "15:20"];
