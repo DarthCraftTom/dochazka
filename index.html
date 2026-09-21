@@ -10,14 +10,14 @@
     <style>
         :root {
             /* Tmavý režim jako výchozí */
-            --primary: #6366F1; /* Světlejší modrá pro tmavý režim */
+            --primary: #6366F1;
             --bg: #111827;
             --surface: #1F2937;
             --text: #F9FAFB;
             --border: #374151;
         }
 
-        /* Třída pro světlý režim (pokud bys chtěl někdy přepínat) */
+        /* Třída pro světlý režim */
         .light-mode {
             --primary: #4F46E5;
             --bg: #F3F4F6;
@@ -32,7 +32,7 @@
             color: var(--text);
             margin: 0;
             padding: 20px;
-            transition: background-color 0.3s, color 0.3s; /* Plynulý přechod */
+            transition: background-color 0.3s, color 0.3s;
         }
         .container {
             max-width: 1200px;
@@ -46,7 +46,7 @@
             background-color: var(--surface);
             padding: 25px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3); /* Tmavší stín */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             flex: 1;
             min-width: 300px;
             transition: background-color 0.3s;
@@ -68,7 +68,7 @@
             border-radius: 6px;
             box-sizing: border-box;
             font-size: 16px;
-            background-color: var(--bg); /* Tmavší pozadí pro inputy */
+            background-color: var(--bg);
             color: var(--text);
         }
         button {
@@ -92,8 +92,8 @@
             text-align: center;
             font-weight: bold;
         }
-        .success { background-color: #065F46; color: #D1FAE5; } /* Tmavší úspěch */
-        .error { background-color: #991B1B; color: #FEE2E2; } /* Tmavší chyba */
+        .success { background-color: #065F46; color: #D1FAE5; }
+        .error { background-color: #991B1B; color: #FEE2E2; }
 
         /* Styly pro stopky */
         .stopwatch-display {
@@ -112,7 +112,7 @@
             flex: 1;
         }
         #transferTimeBtn {
-            background-color: #10B981; /* Zelené tlačítko pro přenos */
+            background-color: #10B981;
         }
         #transferTimeBtn:hover {
             background-color: #059669;
@@ -124,7 +124,7 @@
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            flex: 1 1 100%; /* Roztáhne tabulku na celou šířku na novém řádku */
+            flex: 1 1 100%;
             margin-top: 10px;
             transition: background-color 0.3s;
         }
@@ -260,21 +260,32 @@
 
 <!-- Firebase SDK a logika (ES Modules) -->
 <script type="module">
-    // Import Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-    // VLOŽ SVŮJ FIREBASE CONFIG TADY!!!
     const firebaseConfig = {
-  apiKey: "AIzaSyClGPUE8Dr2pzYoxFSRuO3zRWkQZGztcsM",
-  authDomain: "dochazka-2b9ae.firebaseapp.com",
-  projectId: "dochazka-2b9ae",
-  storageBucket: "dochazka-2b9ae.firebasestorage.app",
-  messagingSenderId: "105090704625",
-  appId: "1:105090704625:web:c14ac1831f20c1733cb550"
-};
+        apiKey: "AIzaSyClGPUE8Dr2pzYoxFSRuO3zRWkQZGztcsM",
+        authDomain: "dochazka-2b9ae.firebaseapp.com",
+        projectId: "dochazka-2b9ae",
+        storageBucket: "dochazka-2b9ae.firebasestorage.app",
+        messagingSenderId: "105090704625",
+        appId: "1:105090704625:web:c14ac1831f20c1733cb550"
+    };
 
-// --- STOPKY LOGIKA ---
+    // Inicializace
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Globální proměnné
+    let arrivalChart = null;
+    let allRecords = [];
+
+    // Elementy
+    const form = document.getElementById('arrivalForm');
+    const messageDiv = document.getElementById('message');
+    const btn = document.getElementById('submitBtn');
+    
+    // --- STOPKY LOGIKA ---
     let startTime;
     let elapsedTime = 0;
     let timerInterval;
@@ -308,12 +319,12 @@
             }, 10);
             startStopBtn.textContent = 'Stop';
             isRunning = true;
-            transferTimeBtn.disabled = true; // Zákaz přenosu během běhu
+            transferTimeBtn.disabled = true;
         } else {
             clearInterval(timerInterval);
             startStopBtn.textContent = 'Start';
             isRunning = false;
-            transferTimeBtn.disabled = false; // Povolení přenosu po zastavení
+            transferTimeBtn.disabled = false;
         }
     });
 
@@ -334,12 +345,11 @@
         formMinutesInput.value = m;
         formSecondsInput.value = s;
         
-        // Vizuální zpětná vazba
         const originalText = transferTimeBtn.textContent;
         transferTimeBtn.textContent = "Přeneseno!";
         setTimeout(() => { transferTimeBtn.textContent = originalText; }, 1500);
     });
-    // --- KONEC STOPKY LOGIKA ---
+
     // --- AUTOMATICKÉ ZAPNUTÍ STOPEK DLE ZVONĚNÍ ---
     const bellTimes = ["08:00", "08:55", "10:00", "10:55", "11:50", "12:45", "13:35", "14:30", "15:20"];
     let lastCheckedMinute = "";
@@ -350,41 +360,24 @@
         const minutes = now.getMinutes().toString().padStart(2, '0');
         const currentTimeStr = `${hours}:${minutes}`;
 
-        // Zkontrolujeme, zda se změnila minuta, abychom nespouštěli kód zbytečně 60x za minutu
         if (currentTimeStr !== lastCheckedMinute) {
             lastCheckedMinute = currentTimeStr;
-            
-            // Pokud je aktuální čas v seznamu zvonění a stopky neběží, spustíme je
             if (bellTimes.includes(currentTimeStr)) {
                 if (!isRunning) {
-                    startStopBtn.click(); // Simulace kliknutí na Start
+                    startStopBtn.click();
                 }
             }
         }
-    }, 1000); // Kontrola probíhá každou sekundu
-    // --- KONEC AUTOMATICKÉHO ZVONĚNÍ ---
-    
-    // Inicializace
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    }, 1000);
 
-    // Globální proměnná pro graf
-    let arrivalChart = null;
-
-    // Elementy z DOMu
-    const form = document.getElementById('arrivalForm');
-    const messageDiv = document.getElementById('message');
-    const btn = document.getElementById('submitBtn');
-
-    // Funkce pro zobrazení zprávy
+    // --- ODESLÁNÍ DO FIRESTORE ---
     function showMessage(text, type) {
         messageDiv.textContent = text;
-        messageDiv.className = type; // success nebo error
+        messageDiv.className = type;
         messageDiv.style.display = 'block';
         setTimeout(() => messageDiv.style.display = 'none', 3000);
     }
 
-    // Odeslání formuláře do Firestore
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         btn.disabled = true;
@@ -393,8 +386,6 @@
         const teacher = document.getElementById('teacher').value;
         const minutes = parseInt(document.getElementById('minutes').value);
         const seconds = parseInt(document.getElementById('seconds').value);
-        
-        // Převod na celkové sekundy pro snazší výpočty
         const totalSeconds = (minutes * 60) + seconds;
 
         try {
@@ -410,14 +401,13 @@
             document.getElementById('minutes').value = 0;
             document.getElementById('seconds').value = 0;
             
-            // --- Automatický reset stopek po odeslání ---
+            // Automatický reset stopek po odeslání
             if (isRunning) {
-                startStopBtn.click(); // Zastaví běžící stopky
+                startStopBtn.click();
             }
-            resetBtn.click(); // Vynuluje stopky
-            // --------------------------------------------
+            resetBtn.click();
 
-            await loadChartData(); // Přenačíst graf i tabulku
+            await loadChartData();
         } catch (error) {
             console.error("Chyba při zápisu: ", error);
             showMessage('Chyba při odesílání: ' + error.message, 'error');
@@ -427,20 +417,14 @@
         }
     });
 
-    // Globální pole pro uchování všech záznamů (pro tabulku)
-    let allRecords = [];
-
-    // Funkce pro načtení dat a vykreslení grafu i tabulky
+    // --- NAČTENÍ DAT PRO GRAF A TABULKU ---
     async function loadChartData() {
         const querySnapshot = await getDocs(collection(db, "arrivals"));
         const teacherData = {};
-        allRecords = []; // Reset před naplněním
+        allRecords = []; 
 
-        // Sčítání časů pro zjištění průměru a ukládání do pole
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            
-            // Pro tabulku: Převod Firebase timestamp na klasický JS Date
             let recordDate = data.timestamp && data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp || Date.now());
             
             allRecords.push({
@@ -452,7 +436,6 @@
                 timestamp: recordDate
             });
 
-            // Pro graf:
             if (!teacherData[data.teacher]) {
                 teacherData[data.teacher] = { totalSec: 0, count: 0 };
             }
@@ -460,10 +443,8 @@
             teacherData[data.teacher].count += 1;
         });
 
-        // Vykreslení tabulky s novými daty
         renderTable();
 
-        // --- Logika grafu ---
         const averages = [];
         for (const [name, stats] of Object.entries(teacherData)) {
             averages.push({
@@ -487,13 +468,11 @@
         const filterValue = filterTeacherSelect.value;
         const sortValue = sortRecordsSelect.value;
 
-        // 1. Filtrace
         let displayData = allRecords;
         if (filterValue !== "all") {
             displayData = displayData.filter(record => record.teacher === filterValue);
         }
 
-        // 2. Řazení
         displayData.sort((a, b) => {
             if (sortValue === "dateDesc") return b.timestamp - a.timestamp;
             if (sortValue === "dateAsc") return a.timestamp - b.timestamp;
@@ -502,12 +481,9 @@
             return 0;
         });
 
-        // 3. Vykreslení HTML
         tableBody.innerHTML = "";
         displayData.forEach(record => {
             const tr = document.createElement('tr');
-            
-            // Formátování data
             const dateStr = record.timestamp.toLocaleString('cs-CZ', {
                 day: '2-digit', month: '2-digit', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
@@ -522,12 +498,10 @@
         });
     }
 
-    // Posluchače pro filtry
     filterTeacherSelect.addEventListener('change', renderTable);
     sortRecordsSelect.addEventListener('change', renderTable);
-    // --- KONEC LOGIKY TABULKY ---
 
-    // Funkce pro vykreslení grafu Chart.js
+    // --- VYKRESLENÍ GRAFU ---
     function renderChart(labels, dataValues) {
         const ctx = document.getElementById('myChart').getContext('2d');
         if (arrivalChart) arrivalChart.destroy();
@@ -539,7 +513,7 @@
                 datasets: [{
                     label: 'Průměrné zpoždění (v sekundách)',
                     data: dataValues,
-                    backgroundColor: 'rgba(99, 102, 241, 0.5)', /* Upraveno pro tmavý režim */
+                    backgroundColor: 'rgba(99, 102, 241, 0.5)', 
                     borderColor: 'rgba(99, 102, 241, 1)',
                     borderWidth: 1
                 }]
@@ -565,46 +539,7 @@
         });
     }
 
-    // Při prvním načtení stránky načíst data do grafu i tabulky
-    loadChartData();
-
-    // Funkce pro vykreslení grafu Chart.js
-    function renderChart(labels, dataValues) {
-        const ctx = document.getElementById('myChart').getContext('2d');
-        
-        // Zničit starý graf pokud existuje
-        if (arrivalChart) {
-            arrivalChart.destroy();
-        }
-
-        arrivalChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Průměrné zpoždění (v sekundách)',
-                    data: dataValues,
-                    backgroundColor: 'rgba(79, 70, 229, 0.5)',
-                    borderColor: 'rgba(79, 70, 229, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Sekundy celkem'
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    // Při prvním načtení stránky načíst data do grafu
+    // Spuštění po načtení
     loadChartData();
 </script>
 
