@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Příchody pedagogů</title>
     <link rel="icon" type="image/png" href="brambora.png">
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#111827">
+
+    <!-- Speciální podpora pro iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Příchody">
+    <link rel="apple-touch-icon" href="brambora.png">
     <!-- Načtení Chart.js pro graf -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -543,5 +552,16 @@
     loadChartData();
 </script>
 
+<!-- PWA Service Worker -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => console.log('SW registrován'))
+                .catch(err => console.log('SW chyba: ', err));
+        });
+    }
+</script>
+    
 </body>
 </html>
